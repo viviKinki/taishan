@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登泰山 · 情境互动体验</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; background:#0b0e13; color:#e8e6df; font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif; overflow:hidden; }
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; opacity:0; pointer-events:none; transition:opacity .5s ease; }
+  .screen.active { opacity:1; pointer-events:auto; }
+
+  /* ---------- 开场 ---------- */
+  #s-intro { align-items:center; justify-content:center; text-align:center; background:
+      radial-gradient(1200px 600px at 50% -10%, #1d2b3a 0%, #0b0e13 60%); padding:24px; }
+  #s-intro .zh { font-size:15px; letter-spacing:.6em; color:#c8a25a; margin-bottom:10px; text-indent:.6em; }
+  #s-intro h1 { font-size:52px; letter-spacing:.12em; font-weight:700; margin-bottom:6px; text-indent:.12em; }
+  #s-intro .sub { color:#9aa3ad; font-size:14px; margin-bottom:34px; line-height:1.9; max-width:560px; }
+  .btn { display:inline-block; background:#c8a25a; color:#181205; border:none; font-size:16px; font-weight:600;
+         padding:13px 44px; border-radius:999px; cursor:pointer; letter-spacing:.15em; text-indent:.15em; transition:.25s; }
+  .btn:hover { background:#dcbd7d; transform:translateY(-2px); box-shadow:0 8px 24px rgba(200,162,90,.25); }
+  .btn:disabled { opacity:.35; cursor:not-allowed; transform:none; box-shadow:none; }
+
+  /* ---------- 分组选择 ---------- */
+  #s-select { padding:5vh 5vw; overflow-y:auto; }
+  #s-select h2 { font-size:24px; letter-spacing:.1em; margin-bottom:6px; }
+  #s-select p { color:#9aa3ad; font-size:14px; margin-bottom:28px; line-height:1.8; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:18px; width:100%; max-width:1180px; margin:0 auto; }
+  .card { position:relative; height:340px; border-radius:14px; overflow:hidden; cursor:pointer; border:1px solid #2a3340;
+          transition:transform .3s, border-color .3s, box-shadow .3s; background:#141a22; }
+  .card:hover { transform:translateY(-6px); border-color:#c8a25a; box-shadow:0 14px 40px rgba(0,0,0,.5); }
+  .card img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.85; transition:opacity .3s; }
+  .card:hover img { opacity:1; }
+  .card .mask { position:absolute; inset:0; background:linear-gradient(180deg, rgba(10,12,16,.15) 30%, rgba(10,12,16,.92) 82%); }
+  .card .txt { position:absolute; left:0; right:0; bottom:0; padding:16px 18px 18px; }
+  .card .tag { display:inline-block; font-size:11px; color:#c8a25a; border:1px solid rgba(200,162,90,.55);
+               padding:2px 9px; border-radius:999px; margin-bottom:8px; letter-spacing:.08em; }
+  .card h3 { font-size:19px; margin-bottom:5px; }
+  .card .d { font-size:12.5px; color:#c3c9d1; line-height:1.65; }
+
+  /* ---------- 剧情 ---------- */
+  #s-story { background:#000; }
+  #stage { position:relative; flex:1; overflow:hidden; }
+  #sceneImg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:opacity .6s ease; }
+  #vignette { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,.72) 78%, rgba(0,0,0,.9) 100%); pointer-events:none; }
+  #locTag { position:absolute; top:22px; left:26px; font-size:13px; letter-spacing:.2em; color:#e8dcc0;
+            background:rgba(10,12,16,.55); border:1px solid rgba(200,162,90,.4); padding:6px 14px; border-radius:6px; backdrop-filter:blur(4px); }
+  #progress { position:absolute; top:22px; right:26px; font-size:12px; color:#9aa3ad; letter-spacing:.15em;
+              background:rgba(10,12,16,.55); padding:6px 12px; border-radius:6px; }
+  #dlg { position:absolute; left:50%; bottom:26px; transform:translateX(-50%); width:min(860px,92vw);
+         background:rgba(12,14,18,.82); border:1px solid rgba(200,162,90,.28); border-radius:14px;
+         padding:22px 26px 20px; backdrop-filter:blur(8px); }
+  #speaker { font-size:14px; color:#c8a25a; letter-spacing:.12em; margin-bottom:8px; font-weight:600; }
+  #line { font-size:17px; line-height:1.95; min-height:66px; white-space:pre-wrap; }
+  #line .cursor { display:inline-block; width:2px; height:1em; background:#c8a25a; vertical-align:-2px; animation:blink .8s infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+  #choices { display:none; margin-top:16px; gap:12px; flex-wrap:wrap; }
+  #choices.show { display:flex; }
+  .choice { flex:1 1 40%; min-width:200px; text-align:left; background:rgba(200,162,90,.08); color:#e8e6df;
+            border:1px solid rgba(200,162,90,.45); border-radius:10px; padding:12px 16px; font-size:15px; cursor:pointer; transition:.2s; }
+  .choice:hover { background:rgba(200,162,90,.22); border-color:#c8a25a; }
+  #nextHint { margin-top:12px; text-align:right; font-size:12.5px; color:#8b93a0; display:none; }
+  #nextHint.show { display:block; }
+
+  /* ---------- 情境导入 ---------- */
+  #s-immerse { align-items:center; justify-content:center; padding:6vh 6vw;
+      background:radial-gradient(1000px 600px at 50% -5%, #1b2a39 0%, #0b0e13 65%); overflow-y:auto; }
+  .immerse { width:min(760px,94vw); }
+  .immerse .kicker { font-size:12.5px; letter-spacing:.3em; color:#c8a25a; margin-bottom:18px; }
+  .immerse h2 { font-size:25px; letter-spacing:.08em; font-weight:600; margin-bottom:24px; }
+  .immerse .lead { font-size:18.5px; line-height:2.3; color:#eae7de; letter-spacing:.015em;
+      border-left:2px solid rgba(200,162,90,.6); padding-left:24px; margin-bottom:28px; white-space:pre-wrap; }
+  .immerse .hint { font-size:13px; color:#8b93a0; line-height:1.95; margin-bottom:26px; }
+  .immerse .row { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .immerse .count { font-size:13px; color:#8b93a0; }
+
+  /* ---------- 完成 ---------- */
+  #s-done { align-items:center; justify-content:center; text-align:center; background:
+      radial-gradient(900px 500px at 50% 110%, #20313f 0%, #0b0e13 60%); padding:24px; }
+  #s-done h1 { font-size:34px; margin-bottom:14px; letter-spacing:.1em; }
+  #code { font-size:26px; letter-spacing:.2em; color:#c8a25a; background:#141a22; border:1px dashed rgba(200,162,90,.5);
+          padding:14px 34px; border-radius:12px; margin:18px 0 26px; font-family:Consolas,monospace; }
+  #s-done p { color:#9aa3ad; font-size:14px; line-height:2; max-width:520px; }
+
+  .fade { animation:fadeIn .6s ease both; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:none;} }
+  @media (max-width:640px){
+    #s-intro h1{ font-size:36px; } #dlg{ bottom:12px; padding:16px 18px 14px; } #line{ font-size:15px; }
+    .card{ height:250px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 开场 -->
+<section id="s-intro" class="screen active">
+  <div class="zh">情境互动研究</div>
+  <h1>登 泰 山</h1>
+  <div class="sub">
+    本体验是一项关于旅行经历的学术研究材料。你将代入一位登山者的第一人称视角，<br>
+    完成一次从红门到日观峰的泰山之旅，并在途中做出自己的选择。<br>
+    全程约 8–10 分钟，请在安静环境中一次性完成；互动结束后请返回见数平台填写问卷。<br>
+    你的作答均匿名记录，仅用于学术研究。
+  </div>
+  <button class="btn" onclick="goSelect()">开始旅程</button>
+</section>
+
+<!-- 分组选择 -->
+<section id="s-select" class="screen">
+  <h2>这次旅行，你和谁一起？</h2>
+  <p>请选择一种旅行方式，进入对应的登山情境。<br>（正式收数时由见数平台的分组链接随机分配情境；此处为体验入口。）</p>
+  <div class="cards">
+    <div class="card" onclick="startImmerse(1)">
+      <img src="assets/g1_s1.jpg" alt=""><div class="mask"></div>
+      <div class="txt"><span class="tag">情境 ①</span><h3>独自出行</h3>
+        <div class="d">一个人背包上山，沿途与不期而遇的陌生人发生交集。</div></div>
+    </div>
+    <div class="card" onclick="startImmerse(2)">
+      <img src="assets/g2_s1.jpg" alt=""><div class="mask"></div>
+      <div class="txt"><span class="tag">情境 ②</span><h3>和"旅游搭子"同行</h3>
+        <div class="d">在社交平台结识的陌生搭子，约好拼行程、拼攻略、AA 同行。</div></div>
+    </div>
+    <div class="card" onclick="startImmerse(3)">
+      <img src="assets/g3_s1.jpg" alt=""><div class="mask"></div>
+      <div class="txt"><span class="tag">情境 ③</span><h3>和朋友 / 同事同行</h3>
+        <div class="d">和认识多年的好友结伴，一路插科打诨、互相照应。</div></div>
+    </div>
+    <div class="card" onclick="startImmerse(4)">
+      <img src="assets/g4_s1.jpg" alt=""><div class="mask"></div>
+      <div class="txt"><span class="tag">情境 ④</span><h3>和家人同行</h3>
+        <div class="d">陪妈妈一起爬泰山，她凌晨五点就起来收拾好了行囊。</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 情境导入 -->
+<section id="s-immerse" class="screen">
+  <div class="immerse">
+    <div class="kicker">情 境 导 入</div>
+    <h2>先把自己放进这段旅程</h2>
+    <div class="lead" id="immerseText"></div>
+    <div class="hint">请用第一人称想象自己就是这段旅程中的旅人：你为什么出发、和谁一起、今天打算怎么走。<br>
+      读完后即可进入互动剧情；后续所有量表题项请在见数平台填写。</div>
+    <div class="row">
+      <button class="btn" id="enterBtn" onclick="enterStory()" disabled>进入旅程</button>
+      <span class="count" id="immerseCount">请阅读情境导入（15 秒）</span>
+    </div>
+  </div>
+</section>
+
+<!-- 剧情 -->
+<section id="s-story" class="screen">
+  <div id="stage">
+    <img id="sceneImg" src="" alt="">
+    <div id="vignette"></div>
+    <div id="locTag"></div>
+    <div id="progress"></div>
+    <div id="dlg">
+      <div id="speaker"></div>
+      <div id="line"></div>
+      <div id="choices"></div>
+      <div id="nextHint">点击任意处继续 ▸</div>
+    </div>
+  </div>
+</section>
+
+<!-- 完成 -->
+<section id="s-done" class="screen">
+  <h1>旅程结束</h1>
+  <p>互动体验已完成。请<b>返回见数平台继续填写问卷</b>，完成全部题项后方可领取酬劳。<br>
+     请将下方编号原样复制、填入问卷中的“体验编号”一栏，用于匹配你的互动记录。</p>
+  <div id="code"></div>
+  <button class="btn" onclick="downloadData()">下载互动记录（研究者用）</button>
+</section>
+
+<script>
+/* ================= 数据 ================= */
+const S = { group:0, t0:Date.now(), scenes:[], code:'', immerseMs:0 };
+
+const GROUPS = {
+1:{ name:'独自出行', scenes:[
+ {loc:'红门 · 清晨', img:'assets/g1_s1.jpg', lines:[
+   ['旁白','你独自背着包站在红门登山口。攻略昨晚在手机上翻了无数遍，可真站到石牌坊下，还是有点发懵——从哪条路上山？要不要先去万仙楼？'],
+   ['旁白','身边没有同行的人。你深吸一口气，山里的空气微凉，混着松柏的味道。']],
+   choices:[{t:'打开离线地图，自己先把路线研究明白',fb:['旁白','你蹲在石阶旁看了十分钟地图，心里大致有了数，起身踏上第一段台阶。']},
+            {t:'先跟着人流往前走，边爬边看',fb:['旁白','你把手机揣回兜里，汇入三三两两的登山人流，踏上了第一段台阶。']}]},
+ {loc:'登山古道 · 上午', img:'assets/g1_s2.jpg', lines:[
+   ['旁白','一块岔路木牌前，你停下来比对手机上的截图。一位中年大哥放缓脚步，看了你一眼。'],
+   ['陌生驴友','头一回来爬泰山吧？从这儿上去一路都有指示牌。记住喽，中天门大概是一半路，别在前面把力气耗光。今天多云，山顶风大，想看日落得在六点四十前上去。'],
+   ['旁白','他指了指你手机里存的网红路线："那条是后山线，景色野但路不好走，一个人第一次来，走红门主线最稳。"']],
+   choices:[{t:'道谢，把日落时间和路线要点记进备忘录',fb:['旁白','你把时间点一一记下。大哥摆摆手，先行一步，背影很快融进石阶的人流里。']},
+            {t:'多问几句：您爬过几次了？',fb:['陌生驴友','每年都来一两趟，十多年喽。上边十八盘才是硬骨头，留着力气。']}]},
+ {loc:'中天门 · 正午', img:'assets/g1_s3.jpg', lines:[
+   ['旁白','中天门的石台上坐满了歇脚的人。你在小卖部前翻钱包，店主大姐一边递水一边开口。'],
+   ['店主','往上走水越来越贵，十八盘顶上能卖到八块。在这儿灌满再走，山上可没有免费热水。'],
+   ['旁白','旁边一位歇脚的旅人插话："你要赶时间就走右边，缓、好走，但绕远；直走十八盘最陡，能快半个小时。"']],
+   choices:[{t:'把水灌满，谢过店主',fb:['店主','对喽，年轻人听劝。慢慢爬，不着急。']},
+            {t:'顺便再买点补给带上',fb:['旁白','你多带了一根士力架。那位旅人笑着补充："十八盘前吃了它，管用。"']}]},
+ {loc:'十八盘 · 午后', img:'assets/g1_s4.jpg', lines:[
+   ['旁白','台阶陡得望不到头。一位下山的游客迎面而来，隔着几级台阶朝你喊。'],
+   ['下山游客','慢一点！昨晚飘了点雨，这截台阶滑，扶着右边栏杆走，别踩石头中间发亮的地方。过了龙门坊还有"紧十八"，留点劲！'],
+   ['旁白','他说完继续下山，走出几步又回头补了一句。']],
+   choices:[{t:'道谢，扶稳栏杆放慢脚步',fb:['旁白','石阶果然有些湿滑。你按他说的节奏，一步一步往上挪。']},
+            {t:'朝他喊：上面还要多久？',fb:['下山游客','照你这速度，四十分钟！加油——']}]},
+ {loc:'天街 · 傍晚', img:'assets/g1_s5.jpg', lines:[
+   ['旁白','山顶的风比想象中硬得多。天街的摊位上摞着一排排军大衣，摊主看你只穿了件薄外套。'],
+   ['摊主','山顶夜里零下，租一件三十，押金一百，明早看完日出去南天门口还。日观峰看日出人最多，想占好位置，四点半就得到。'],
+   ['旁白','他把大衣抖开，补充道："住店贵，不少人裹着这个在日观峰等天亮。"']],
+   choices:[{t:'租一件大衣，记好还衣时间',fb:['摊主','手机付就行，条子拿好，明早凭条退押金。']},
+            {t:'再确认一遍日出的具体时间和位置',fb:['摊主','六点零五左右，东边那块大石头视野最好，去了你就知道。']}]},
+ {loc:'日观峰 · 破晓', img:'assets/g1_s6.jpg', lines:[
+   ['旁白','凌晨四点半，日观峰上已经站满了裹着大衣的人。你举着手机找角度，身旁一位陌生人往东边努了努嘴。'],
+   ['陌生游客','再往那块石头边上挪，那边没遮挡。'],
+   ['旁白','你道了声谢挪过去。六点过，太阳跃出云海，人群里响起一片低低的惊叹。'],
+   ['旁白','这一路上，没有人陪你走完全程；但几乎每个路口，都有人把他们的经验递到你手里。']],
+   choices:[{t:'把日出和人群一起拍下来',fb:['旁白','你给照片配了一行字：一个人上山，一路上却全是人。']},
+            {t:'转头对那位陌生人认真说声谢谢',fb:['陌生游客','客气啥，出门在外，都是缘分。']}]}
+]},
+2:{ name:'和旅游搭子同行', scenes:[
+ {loc:'红门 · 清晨', img:'assets/g2_s1.jpg', lines:[
+   ['旁白','你和"阿黎"是在小红书的"泰山搭子"帖里认识的。出发前你们只在线上聊过三次：分工、集合时间、AA 规则。'],
+   ['旁白','石牌坊下，一个背灰色双肩包、扎马尾的女生朝你挥手。'],
+   ['阿黎','可算见着活人了！路上还顺吗？']],
+   choices:[{t:'打个招呼，简单自我介绍',fb:['阿黎','行，那咱就算正式组队了。边走边对一下行程？']},
+            {t:'直接对一下今天的行程和分工',fb:['阿黎','哈哈，比我还急。来，都准备好了。']}]},
+ {loc:'登山古道 · 上午', img:'assets/g2_s2.jpg', lines:[
+   ['旁白','走了不到半小时，阿黎把手机递到你面前，屏幕上是一张排得密密麻麻的表格。'],
+   ['阿黎','我做了张表——几点到中天门、几点上十八盘、日落时间、大衣租赁点，都标了。你体力怎么样？不行我把休息点加密一点。'],
+   ['旁白','表格最后一列写着备注："日出 6:05，日观峰东侧人少。"']],
+   choices:[{t:'有点佩服：那就照着表走',fb:['阿黎','表是死的，人是活的，走起来再调。']},
+            {t:'提议按体力灵活调整',fb:['阿黎','没问题，反正关键节点就那几个，卡住时间就行。']}]},
+ {loc:'中天门 · 正午', img:'assets/g2_s3.jpg', lines:[
+   ['旁白','中天门的石凳上，阿黎把两瓶水、巧克力和小面包摆成两堆。'],
+   ['阿黎','一人一半，我都记账上了，下山 AA。'],
+   ['旁白','她努努下巴指向不远处一块石刻："乾隆题的，我查过资料，一会儿路过正好看一眼，顺路。"']],
+   choices:[{t:'接过自己那份，道声谢',fb:['阿黎','客气啥，搭子守则第一条：补给共享，账目分明。']},
+            {t:'也把自己带的零食分她一半',fb:['阿黎','哟，懂事。这包坚果我收了，记你账上减三块。']}]},
+ {loc:'十八盘 · 午后', img:'assets/g2_s4.jpg', lines:[
+   ['旁白','十八盘的台阶陡得离谱。阿黎在你上方几级回头，用登山杖敲了敲石阶。'],
+   ['阿黎','别急着冲，数着台阶走，五十级一停。我查过攻略，这个节奏心率最稳。'],
+   ['旁白','她放慢半步，敲出"哒、哒"的节奏。说来也怪，跟着这个节奏，腿居然没那么抖了。']],
+   choices:[{t:'跟着她的节奏走',fb:['阿黎','对，就是这样。过了龙门坊我请你喝山顶可乐。']},
+            {t:'笑说你可以再快一点',fb:['阿黎','省省吧你，攻略上说在这逞能的，最后都坐缆车下去了。']}]},
+ {loc:'天街 · 傍晚', img:'assets/g2_s5.jpg', lines:[
+   ['旁白','山顶风大。阿黎已经裹上了租来的军大衣，把另一件递给你。'],
+   ['阿黎','跟老板砍到二十五一件，押金我一起付的，回头 AA。'],
+   ['旁白','她朝东边指了指："明早四点半出发，日观峰东侧，我提前在小红书上踩过点了——情报可靠。"']],
+   choices:[{t:'夸她攻略做得是真细',fb:['阿黎','那当然，搭子的职业素养。']},
+            {t:'笑称她是"人形攻略"',fb:['阿黎','谢谢，这个称号我收下了。明早可别赖床。']}]},
+ {loc:'索道站 · 清晨', img:'assets/g2_s6.jpg', lines:[
+   ['旁白','看完日出，云海还在脚下翻涌。阿黎看了看表，把背包带系紧。'],
+   ['阿黎','我下午的高铁，坐索道下山。这趟很顺，账回去发你。'],
+   ['旁白','她挥挥手，笑得干脆："以后有合适的线，再拼。"'],
+   ['旁白','你们甚至没有留真名。但这一路的攻略、情报和节奏，都是实打实的。']],
+   choices:[{t:'说："再拼。"',fb:['阿黎','再拼！回头把你拉进搭子群。']},
+            {t:'互道珍重，目送她进索道站',fb:['旁白','索道的轿厢滑进云里。你想，这大概就是这个时代特有的旅伴。']}]}
+]},
+3:{ name:'和朋友同行', scenes:[
+ {loc:'红门 · 清晨', img:'assets/g3_s1.jpg', lines:[
+   ['旁白','大周一见面就冲你嚷嚷。你们认识快十年了，从大学睡上下铺到如今一年见不了两面。'],
+   ['大周','可以啊，真来了！我还以为你昨晚又要放我鸽子。'],
+   ['旁白','他夸张地张开双臂摆了个 pose："来，给大爷乐一个，纪念你今年第一次早起。"你知道，他是怕你临阵打退堂鼓。']],
+   choices:[{t:'笑他戏精上身',fb:['大周','什么戏精，这叫气氛组。走你！']},
+            {t:'配合地拍了一张',fb:['旁白','照片里他笑得没心没肺。你忽然觉得，这趟山没白来。']}]},
+ {loc:'登山古道 · 上午', img:'assets/g3_s2.jpg', lines:[
+   ['旁白','爬到一半，你的脚步开始拖。大周二话不说，伸手把你背包拽下来甩到自己胸前。'],
+   ['大周','你包里装砖头了？行了行了，你只管迈腿，行李归我。'],
+   ['旁白','他前胸后背各挂一个包，走姿像个移动的货架。你注意到，他额头上其实也全是汗。']],
+   choices:[{t:'伸手想把包抢回来',fb:['大周','别闹，你那点体力留着对付十八盘。当年抄我笔记的时候怎么不客气？']},
+            {t:'让他逞能，心里却是一暖',fb:['旁白','你嘴上骂他逞能，脚步却轻快了不少。']}]},
+ {loc:'中天门 · 正午', img:'assets/g3_s3.jpg', lines:[
+   ['旁白','你一屁股坐在石凳上不想动："要不，咱坐缆车上去得了。"'],
+   ['旁白','大周把拧开的水递到你面前，伸出拳头跟你碰了碰。'],
+   ['大周','说什么呢，十八盘就在眼前，爬完你就是好汉。当年你八百米都扛下来了，这算什么。']],
+   choices:[{t:'碰拳，起身继续走',fb:['大周','这才对嘛。走，好汉！']},
+            {t:'再瘫五分钟——他陪你一起瘫',fb:['旁白','两个人并排瘫在石凳上看来往的挑山工。五分钟后，他用胳膊肘捅你："走了。"']}]},
+ {loc:'十八盘 · 午后', img:'assets/g3_s4.jpg', lines:[
+   ['旁白','台阶陡得腿肚子发软。大周先上去几级，蹲下来，朝你伸出一只手。'],
+   ['大周','来，抓住。我在上面等你，一阶一阶来，不急。'],
+   ['旁白','阳光从他背后照下来，那只手悬在半空，稳稳的。']],
+   choices:[{t:'抓住他的手借力上去',fb:['大周','起！看见没，这不就上来了。']},
+            {t:'自己撑着栏杆，他就在旁边给你数台阶',fb:['大周','五十八、五十九、六十——好，停！喘口气再来。']}]},
+ {loc:'天街 · 傍晚', img:'assets/g3_s5.jpg', lines:[
+   ['旁白','山顶的风像刀子，你的嘴唇冻得发白。大周从兜里掏出两片暖宝宝，不由分说拍在你背上。'],
+   ['大周','我早料到你不带够衣服，出门前多拿的。围巾也给你，别跟我客气。'],
+   ['旁白','他自己缩着脖子，呵出的白气一团一团的，笑得倒挺开心。']],
+   choices:[{t:'把围巾分他一半，两人各围一头',fb:['旁白','一条围巾两个人围，滑稽得很，谁都没再喊冷。']},
+            {t:'收下，说回去请他吃顿好的',fb:['大周','记账上了啊，火锅，最贵的那种。']}]},
+ {loc:'日观峰 · 破晓', img:'assets/g3_s6.jpg', lines:[
+   ['旁白','朝阳跃出云海的那一瞬，大周指着太阳嗷了一嗓子。'],
+   ['大周','值了！'],
+   ['旁白','他撞了撞你的肩膀："看见没，不爬上来，你能看着这个？"'],
+   ['旁白','信息你自己也查得到，攻略满网都是。但这一路的底气，是他给的。']],
+   choices:[{t:'撞回去，一起冲日出大喊',fb:['旁白','两个人的喊声混在云海的风里，惊起旁边一阵笑声。']},
+            {t:'安静看一会儿，拍了拍他的背',fb:['旁白','有些感谢不用说出来。他懂。']}]}
+]},
+4:{ name:'和家人同行', scenes:[
+ {loc:'红门 · 清晨', img:'assets/g4_s1.jpg', lines:[
+   ['旁白','妈妈凌晨五点就起来了。这会儿她正把保温杯、护膝、雨衣、晕车药一样一样往包里码。'],
+   ['妈妈','山上冷，热水我都灌好了。你空着手走，包妈背着。'],
+   ['旁白','你想伸手帮忙，她摆摆手："你保存体力。"那个包看起来比她半个身子还大。']],
+   choices:[{t:'坚持自己背',fb:['妈妈','行行行，你背你背。沉了吱声，别硬撑。']},
+            {t:'拗不过，只好由她',fb:['旁白','她满意地把包往肩上一甩，走在前头，脚步比你还快。']}]},
+ {loc:'登山古道 · 上午', img:'assets/g4_s2.jpg', lines:[
+   ['旁白','才走半小时，妈妈就叫了停，拉你在石凳坐下，变戏法似的掏出个橘子剥开，掰一半递过来。'],
+   ['妈妈','不着急，爬山又不是赶集。你小时候爬千佛山，走两步就要抱，现在都能陪妈爬泰山喽。'],
+   ['旁白','橘子很甜。她把另一半也塞给了你："妈不渴。"']],
+   choices:[{t:'接过橘子，慢慢吃完',fb:['旁白','她看着你吃，自己一口没动，笑得像完成了什么大事。']},
+            {t:'笑她哪壶不开提哪壶',fb:['妈妈','怎么不能提？你小时候的事儿，妈都记着呢。']}]},
+ {loc:'中天门 · 正午', img:'assets/g4_s3.jpg', lines:[
+   ['旁白','中天门人挤人。妈妈盯着你的膝盖看了半天，忽然从包里掏出一副护膝。'],
+   ['妈妈','下山伤膝盖，戴上。'],
+   ['旁白','不由分说，她又抽出毛巾，抬手给你按了按额头上的汗："出了汗别吹风，把拉链拉上。"']],
+   choices:[{t:'乖乖戴上护膝',fb:['妈妈','这就对了。听人劝，吃饱饭。']},
+            {t:'嫌热，但还是戴上了',fb:['旁白','她帮你把护膝捋平，动作熟练得像做过一百遍。']}]},
+ {loc:'十八盘 · 午后', img:'assets/g4_s4.jpg', lines:[
+   ['旁白','台阶越来越陡。妈妈一手扶着栏杆，走几级就停下来回头等你，然后朝你伸出手。'],
+   ['妈妈','慢慢来，妈不急，咱娘俩又不赶时间。'],
+   ['旁白','她的手有点粗糙，手背上晒出深浅不一的印子。她就那样耐心地、一步一步地，把陡峭的十八盘走成了等你的路。']],
+   choices:[{t:'让她扶一把',fb:['旁白','她的手很有劲。那一刻你分不清，到底是她在扶你，还是你在陪她。']},
+            {t:'说自己可以——她笑着点头，仍走几步一回头',fb:['妈妈','行，你可以。慢点啊。']}]},
+ {loc:'天街 · 夜晚', img:'assets/g4_s5.jpg', lines:[
+   ['旁白','夜里山顶零下，风顺着衣领往里灌。妈妈把租来的军大衣抖开，先披到你身上，一圈一圈裹紧。'],
+   ['妈妈','妈不冷，妈穿得多。'],
+   ['旁白','你碰到她的手背，冰凉。她把双手拢进袖子里，朝你笑："明早看了日出，这趟就值了。"']],
+   choices:[{t:'把大衣分她一半，两人挤在一起',fb:['旁白','一件大衣裹着两个人，像小时候挤一床被子。她嘴上说你挤，身子却没挪。']},
+            {t:'坚持和她换着披',fb:['妈妈','净瞎讲究……行吧行吧，一人一会儿。']}]},
+ {loc:'日观峰 · 破晓', img:'assets/g4_s6.jpg', lines:[
+   ['旁白','日出那一刻，妈妈没说话，只是看着云海，眼眶有点红。'],
+   ['妈妈','真好看。跟你一块儿看的，值了。'],
+   ['旁白','这一路，她没给你任何攻略。但她把"被照顾"三个字，给你演示得明明白白。']],
+   choices:[{t:'挽住她的胳膊',fb:['旁白','她愣了一下，然后笑出了眼角的褶子。云海在脚下烧成金色。']},
+            {t:'说："明年再带你来。"',fb:['妈妈','好，好。明年妈还来。']}]}
+]}
+};
+
+/* ================= 四组情境导入文本（结构等价，只变社交配置） ================= */
+const IMMERSE = {
+ "1": "正值假期，你给自己安排了一趟泰山之行。这趟没有约任何人：车票是自己订的，路线是自己查的，背包也是自己收拾的。你想按自己的节奏走一天——想停就停，想快就快，不必等谁，也不必迁就谁的时间表，也不必解释为什么。\n\n清晨六点，你按导航到了红门。山门口已有三三两两的登山客，石阶顺着松林一路向上，看不见尽头。你检查了水和手机电量，把背带往上提了提。今天的计划很简单：沿红门主线上山，走到日观峰。",
+ "2": "正值假期，你打算去爬泰山，身边人时间总对不上。你在社交平台发了条“求泰山搭子”的帖子，写清日期、路线和费用方式。很快一位同样计划登山的网友回应了你；你们只聊过几次，把集合时间、行程分工和 AA 说定，彼此连全名都没问。\n\n清晨六点，你按导航到了红门。山门口已有三三两两的登山客，石阶顺着松林一路向上，看不见尽头。你检查了水和手机电量，把背带往上提了提。今天的计划很简单：沿红门主线上山，走到日观峰。",
+ "3": "正值假期，你和认识多年的朋友早早就约好了这趟泰山之行。车票是一起抢的，住宿是一起定的，出发前群里断断续续聊了小半个月，从带什么衣服聊到谁负责拍照。你们彼此熟悉，说话不用客气，谁走得快、谁爱歇脚，心里都有数。\n\n清晨六点，你按导航到了红门。山门口已有三三两两的登山客，石阶顺着松林一路向上，看不见尽头。你检查了水和手机电量，把背带往上提了提。今天的计划很简单：沿红门主线上山，走到日观峰。",
+ "4": "正值假期，你陪妈妈一起安排了这趟泰山之行。车票是你订的，行李是她收拾的，出发前她把该带的东西反复确认了好几遍。她念叨了好些年想看看泰山日出，今年总算把时间凑上了；你把手头的事挪开，专门空出这两天陪她走一趟。\n\n清晨六点，你按导航到了红门。山门口已有三三两两的登山客，石阶顺着松林一路向上，看不见尽头。你检查了水和手机电量，把背带往上提了提。今天的计划很简单：沿红门主线上山，走到日观峰。"
+};
+
+/* ================= 流程控制 ================= */
+const $ = id => document.getElementById(id);
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+function goSelect(){
+  const g = parseInt(new URLSearchParams(location.search).get('g'));
+  if (g>=1 && g<=4){ startImmerse(g); } else { show('s-select'); }
+}
+
+let immerseTimer = null;
+function startImmerse(g){
+  S.group = g;
+  $('immerseText').textContent = IMMERSE[g];
+  show('s-immerse');
+  const btn = $('enterBtn');
+  btn.disabled = true;
+  let left = 15;
+  $('immerseCount').textContent = '请阅读情境导入（' + left + ' 秒）';
+  clearInterval(immerseTimer);
+  immerseTimer = setInterval(()=>{
+    left--;
+    if (left > 0) $('immerseCount').textContent = '请阅读情境导入（' + left + ' 秒）';
+    else { clearInterval(immerseTimer); btn.disabled = false; $('immerseCount').textContent = '已可进入旅程'; }
+  }, 1000);
+  S.immerseT0 = Date.now();
+}
+function enterStory(){
+  S.immerseMs = Date.now() - S.immerseT0;
+  startStory(S.group);
+}
+
+let cur = { lines:[], li:0, typing:false, timer:null, sceneIdx:0, sceneT0:0, pendingChoices:null, choiceT0:0 };
+
+function startStory(g){
+  S.group = g;
+  show('s-story');
+  cur.sceneIdx = 0;
+  loadScene(0);
+}
+function loadScene(i){
+  const sc = GROUPS[S.group].scenes[i];
+  cur.sceneT0 = Date.now();
+  $('sceneImg').style.opacity = 0;
+  const img = new Image();
+  const reveal = ()=>{ $('sceneImg').src = sc.img; $('sceneImg').style.opacity = 1; };
+  img.onload = reveal; img.onerror = reveal; img.src = sc.img;
+  $('locTag').textContent = '第 ' + (i+1) + ' 幕 · ' + sc.loc;
+  $('progress').textContent = '情境 ' + ['①','②','③','④'][S.group-1] + '　' + (i+1) + ' / ' + GROUPS[S.group].scenes.length;
+  $('choices').classList.remove('show'); $('choices').innerHTML='';
+  $('nextHint').classList.remove('show');
+  cur.lines = sc.lines.slice(); cur.li = 0; cur.pendingChoices = sc.choices;
+  typeLine();
+}
+function typeLine(){
+  const pair = cur.lines[cur.li];
+  $('speaker').textContent = pair[0];
+  const el = $('line'); el.innerHTML = '';
+  const cursor = document.createElement('span'); cursor.className='cursor'; el.appendChild(cursor);
+  const text = pair[1];
+  let i = 0; cur.typing = true;
+  clearInterval(cur.timer);
+  cur.timer = setInterval(()=>{
+    if (i < text.length){ cursor.insertAdjacentText('beforebegin', text[i++]); }
+    else { clearInterval(cur.timer); cur.typing=false; cursor.remove(); onLineDone(); }
+  }, 32);
+}
+function skipTyping(){
+  if (!cur.typing) return;
+  clearInterval(cur.timer); cur.typing=false;
+  $('line').textContent = cur.lines[cur.li][1];
+  onLineDone();
+}
+function onLineDone(){
+  if (cur.li < cur.lines.length - 1){ $('nextHint').classList.add('show'); }
+  else if (cur.pendingChoices){ showChoices(cur.pendingChoices); }
+  else { $('nextHint').classList.add('show'); }
+}
+function advance(){
+  if (cur.typing){ skipTyping(); return; }
+  if (cur.li < cur.lines.length - 1){
+    cur.li++; $('nextHint').classList.remove('show'); typeLine();
+  } else if (!cur.pendingChoices){
+    nextScene();
+  }
+}
+function showChoices(choices){
+  const box = $('choices'); box.innerHTML=''; box.classList.add('show');
+  choices.forEach((c,idx)=>{
+    const b = document.createElement('button'); b.className='choice fade'; b.textContent = c.t;
+    b.style.animationDelay = (idx*0.12)+'s';
+    b.onclick = e =>{ e.stopPropagation(); pickChoice(c, idx); };
+    box.appendChild(b);
+  });
+  cur.choiceT0 = Date.now();
+}
+function pickChoice(c, ci){
+  const rt = Date.now() - cur.choiceT0;
+  S.scenes.push({ scene:cur.sceneIdx+1, dwellMs:Date.now()-cur.sceneT0, choice:c.t, choiceIdx:ci, choiceRtMs:rt });
+  $('choices').classList.remove('show');
+  cur.lines = [c.fb]; cur.li = 0; cur.pendingChoices = null;
+  typeLine();
+}
+function nextScene(){
+  const n = GROUPS[S.group].scenes.length;
+  if (cur.sceneIdx < n-1){ cur.sceneIdx++; loadScene(cur.sceneIdx); }
+  else { finish(); }
+}
+document.addEventListener('click', e=>{
+  if ($('s-story').classList.contains('active') && !e.target.closest('.choice')) advance();
+});
+document.addEventListener('keydown', e=>{
+  if ($('s-story').classList.contains('active') && (e.key===' '||e.key==='Enter')){ e.preventDefault(); advance(); }
+});
+
+/* ================= 收尾：生成体验编号并导出互动记录 ================= */
+/* 问卷全部在见数平台完成；此处只把分组、逐幕选择与时长编码成回填码 */
+function finish(){
+  const seq  = S.scenes.map(x => String.fromCharCode(65 + (x.choiceIdx || 0))).join('');
+  const secs = Math.round((Date.now() - S.t0) / 1000);
+  const uid  = new URLSearchParams(location.search).get('uid');
+  S.code = (uid ? uid + '-' : '') + 'G' + S.group + '-' + seq + '-' + secs + 's';
+  S.totalMs = Date.now() - S.t0;
+  S.groupName = GROUPS[S.group].name;
+  $('code').textContent = S.code;
+  show('s-done');
+}
+function downloadData(){
+  const blob = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'taishan_' + S.code + '.json';
+  a.click();
+}
+</script>
+</body>
+</html>
